@@ -317,11 +317,177 @@
 
 
 
-# without ollama, using gemini API for deployed model
+# without ollama, using gemini API for deployed model without memory/sesson management
+
+# import streamlit as st
+# import google.generativeai as genai 
+# from models.persona import Persona 
+
+# # --- Configure Google API ---
+# try:
+#     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+# except Exception as e:
+#     st.error("Could not configure Google API. Please add 'GOOGLE_API_KEY = \"...\"' to your .streamlit/secrets.toml file.")
+
+# class ChatInterface:
+#     def __init__(self):
+#         if 'messages' not in st.session_state:
+#             st.session_state.messages = []
+#         if 'active_personas' not in st.session_state:
+#             st.session_state.active_personas = set()
+#         if 'persona_active_states' not in st.session_state:
+#             st.session_state.persona_active_states = {}
+
+#     def _get_persona_response(self, persona: Persona, prompt: str) -> dict:
+#         """
+#         Get a response from a persona using Google Gemini API (SYNCHRONOUS).
+#         Returns a message dictionary.
+#         """
+#         system_prompt = f"""You are {persona.name}, a {persona.age}-year-old {persona.nationality} {persona.occupation}.
+#         Background: {persona.background}
+#         Daily Routine: {persona.routine}
+#         Personality: {persona.personality}
+#         Skills: {', '.join(persona.skills)}
+        
+#         Respond to the user's message in character, incorporating your background, personality, and expertise.
+#         Keep responses concise (2-3 sentences) and natural.
+#         """
+        
+#         try:
+#             model = genai.GenerativeModel(
+#                 model_name=persona.model, 
+#                 system_instruction=system_prompt
+#             )
+            
+#             generation_config = genai.types.GenerationConfig(
+#                 temperature=persona.temperature,
+#                 max_output_tokens=persona.max_tokens
+#             )
+
+#             # Using the SYNCHRONOUS (blocking) function: .generate_content()
+#             response = model.generate_content(
+#                 prompt,
+#                 generation_config=generation_config
+#             )
+            
+#             return {
+#                 "role": "assistant",
+#                 "content": response.text.strip(),
+#                 "name": persona.name,
+#                 "avatar": persona.avatar
+#             }
+            
+#         except Exception as e:
+#             print(f"Error getting response from {persona.name}: {str(e)}")
+#             return {
+#                 "role": "assistant",
+#                 "content": f"Sorry, I'm having trouble responding right now. (Error: {str(e)})",
+#                 "name": persona.name,
+#                 "avatar": persona.avatar
+#             }
+
+#     def render(self):
+#         """Render the chat interface."""
+#         with st.sidebar:
+#             st.header("Manage Personas")
+            
+#             with st.expander("Create New Persona", expanded=False):
+#                 occupations = [
+#                     "Business Owner", "Marketing Manager", "Finance Director",
+#                     "Sales Representative", "Customer Service Manager", "Operations Manager", "Other"
+#                 ]
+#                 with st.form("create_persona_form_sidebar"):
+#                     selected_occupation = st.selectbox("Select Occupation", options=occupations, key="occupation_select")
+#                     custom_occupation = None
+#                     if selected_occupation == "Other":
+#                         custom_occupation = st.text_input("Enter Custom Occupation")
+                    
+#                     if st.form_submit_button("🎯 Generate Persona"):
+#                         occupation_to_use = custom_occupation if selected_occupation == "Other" else selected_occupation
+                        
+#                         if selected_occupation == "Other" and not custom_occupation:
+#                             st.error("Please enter a custom occupation")
+#                         elif not st.session_state.persona_manager.settings.get("default_model"):
+#                             st.error("Please select a default model in settings (app.py) first!")
+#                         else:
+#                             with st.spinner(f"Generating {occupation_to_use} persona..."):
+#                                 try:
+#                                     persona = st.session_state.persona_manager.generate_persona(
+#                                         occupation=occupation_to_use,
+#                                         model=st.session_state.selected_model,
+#                                         temperature=st.session_state.temperature,
+#                                         max_tokens=st.session_state.max_tokens
+#                                     )
+#                                     if persona:
+#                                         st.session_state.active_personas.add(persona.id)
+#                                         st.session_state.persona_active_states[persona.id] = True
+#                                         st.success(f"Created {persona.name}!")
+#                                         st.rerun()
+#                                     else:
+#                                         st.error("Failed to generate persona.")
+#                                 except Exception as e:
+#                                     st.error(f"Error: {str(e)}")
+            
+#             st.subheader("Active Personas (Chat)")
+#             personas = st.session_state.persona_manager.list_personas()
+#             for persona in personas:
+#                 col1, col2 = st.columns([1, 3])
+#                 with col1:
+#                     st.image(persona.avatar, width=50)
+#                 with col2:
+#                     st.write(f"**{persona.name}**")
+                
+#                 is_active = st.session_state.persona_active_states.get(persona.id, True)
+#                 if st.toggle("Active in Chat", value=is_active, key=f"toggle_{persona.id}"):
+#                     st.session_state.active_personas.add(persona.id)
+#                     st.session_state.persona_active_states[persona.id] = True
+#                 else:
+#                     st.session_state.active_personas.discard(persona.id)
+#                     st.session_state.persona_active_states[persona.id] = False
+#                 st.divider()
+        
+#         st.subheader("🤖 Group Chat")
+        
+#         for message in st.session_state.messages:
+#             if message["role"] == "user":
+#                 with st.chat_message("user", avatar="👤"):
+#                     st.write(f"**You:** {message['content']}")
+#             else:
+#                 col1, col2 = st.columns([1, 10]) 
+#                 with col1:
+#                     st.image(message["avatar"], width=50, caption=message.get("name"))
+#                 with col2:
+#                     st.info(message["content"])
+
+#         # --- THIS IS THE SYNCHRONOUS FIX ---
+#         if prompt := st.chat_input("Chat with your active personas..."):
+#             st.session_state.messages.append({
+#                 "role": "user",
+#                 "content": prompt,
+#                 "name": "You"
+#             })
+            
+#             active_personas = [p for p in personas if p.id in st.session_state.active_personas]
+            
+#             # Loop directly and call the synchronous function one by one
+#             for persona in active_personas:
+#                 with st.spinner(f"{persona.name} is thinking..."):
+#                     response_dict = self._get_persona_response(persona, prompt)
+#                     st.session_state.messages.append(response_dict)
+            
+#             # Rerun to show all the new messages
+#             st.rerun()
+#             # --- END FIX ---
+
+
+
+# without ollama, using gemini API for deployed model with memory/sesson management
+
 
 import streamlit as st
 import google.generativeai as genai 
 from models.persona import Persona 
+import time
 
 # --- Configure Google API ---
 try:
@@ -337,11 +503,14 @@ class ChatInterface:
             st.session_state.active_personas = set()
         if 'persona_active_states' not in st.session_state:
             st.session_state.persona_active_states = {}
+            
+        # --- NEW: Store chat sessions for each persona ---
+        if 'persona_chat_sessions' not in st.session_state:
+            st.session_state.persona_chat_sessions = {}
 
     def _get_persona_response(self, persona: Persona, prompt: str) -> dict:
         """
-        Get a response from a persona using Google Gemini API (SYNCHRONOUS).
-        Returns a message dictionary.
+        Get a response from a persona using a stateful chat session.
         """
         system_prompt = f"""You are {persona.name}, a {persona.age}-year-old {persona.nationality} {persona.occupation}.
         Background: {persona.background}
@@ -354,21 +523,29 @@ class ChatInterface:
         """
         
         try:
-            model = genai.GenerativeModel(
-                model_name=persona.model, 
-                system_instruction=system_prompt
-            )
+            # --- THIS IS THE FIX ---
             
-            generation_config = genai.types.GenerationConfig(
-                temperature=persona.temperature,
-                max_output_tokens=persona.max_tokens
-            )
-
-            # Using the SYNCHRONOUS (blocking) function: .generate_content()
-            response = model.generate_content(
+            # 1. Find this persona's chat session, or create a new one
+            if persona.id not in st.session_state.persona_chat_sessions:
+                model = genai.GenerativeModel(
+                    model_name=persona.model, 
+                    system_instruction=system_prompt
+                )
+                # Create a new chat session
+                st.session_state.persona_chat_sessions[persona.id] = model.start_chat(history=[])
+            
+            # 2. Get the existing chat session
+            chat = st.session_state.persona_chat_sessions[persona.id]
+            
+            # 3. Send the new prompt (the chat session already has the history)
+            response = chat.send_message(
                 prompt,
-                generation_config=generation_config
+                generation_config=genai.types.GenerationConfig(
+                    temperature=persona.temperature,
+                    max_output_tokens=persona.max_tokens
+                )
             )
+            # --- END FIX ---
             
             return {
                 "role": "assistant",
@@ -388,6 +565,7 @@ class ChatInterface:
 
     def render(self):
         """Render the chat interface."""
+        # (Sidebar code is unchanged)
         with st.sidebar:
             st.header("Manage Personas")
             
@@ -444,10 +622,14 @@ class ChatInterface:
                 else:
                     st.session_state.active_personas.discard(persona.id)
                     st.session_state.persona_active_states[persona.id] = False
+                    # Clear the chat history if a persona is deactivated
+                    if persona.id in st.session_state.persona_chat_sessions:
+                        del st.session_state.persona_chat_sessions[persona.id]
                 st.divider()
         
         st.subheader("🤖 Group Chat")
         
+        # (Chat rendering is unchanged)
         for message in st.session_state.messages:
             if message["role"] == "user":
                 with st.chat_message("user", avatar="👤"):
@@ -459,7 +641,7 @@ class ChatInterface:
                 with col2:
                     st.info(message["content"])
 
-        # --- THIS IS THE SYNCHRONOUS FIX ---
+        # (Chat input logic is unchanged)
         if prompt := st.chat_input("Chat with your active personas..."):
             st.session_state.messages.append({
                 "role": "user",
@@ -469,12 +651,40 @@ class ChatInterface:
             
             active_personas = [p for p in personas if p.id in st.session_state.active_personas]
             
-            # Loop directly and call the synchronous function one by one
             for persona in active_personas:
                 with st.spinner(f"{persona.name} is thinking..."):
                     response_dict = self._get_persona_response(persona, prompt)
                     st.session_state.messages.append(response_dict)
+                
+                time.sleep(6) # Keep this to avoid rate-limiting
             
-            # Rerun to show all the new messages
             st.rerun()
-            # --- END FIX ---
+        # --- THIS IS THE SYNCHRONOUS FIX ---
+        # if prompt := st.chat_input("Chat with your active personas..."):
+        #     st.session_state.messages.append({
+        #         "role": "user",
+        #         "content": prompt,
+        #         "name": "You"
+        #     })
+            
+        #     active_personas = [p for p in personas if p.id in st.session_state.active_personas]
+            
+        #     # Loop directly and call the synchronous function one by one
+        #     for persona in active_personas:
+        #         with st.spinner(f"{persona.name} is thinking..."):
+        #             response_dict = self._get_persona_response(persona, prompt)
+        #             st.session_state.messages.append(response_dict)
+                
+        #         time.sleep(6) 
+            
+        #     # --- ADD THIS FIX ---
+        #     # Define a maximum number of messages to keep for display
+        #     MAX_DISPLAY_MESSAGES = 200
+            
+        #     if len(st.session_state.messages) > MAX_DISPLAY_MESSAGES:
+        #         # Keep only the last 50 messages
+        #         st.session_state.messages = st.session_state.messages[-MAX_DISPLAY_MESSAGES:]
+        #     # --- END FIX ---
+            
+        #     # Rerun to show all the new messages
+        #     st.rerun()
