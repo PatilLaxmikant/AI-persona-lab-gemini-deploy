@@ -498,7 +498,7 @@ def render_persona_edit_dialog(persona):
             persona.modified_at = datetime.now()
             
             # Save all personas
-            st.session_state.persona_manager._save_personas()
+            st.session_state.persona_manager.update_persona(persona)
             
             # Close the dialog
             del st.session_state.edit_persona_id
